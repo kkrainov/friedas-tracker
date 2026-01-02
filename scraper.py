@@ -1,10 +1,10 @@
 import pandas as pd
 import requests
 import os
-from datetime import datetime
 
 URL = "https://friedas-berlin.de/en/wohnungsfinder/?etage=1,2,3,4,5&zimmer=2,3,4"
 CSV_FILE = "friedas_data.csv"
+CHANGES_FILE = "changes.txt"
 
 def clean_currency(value):
     if isinstance(value, str):
@@ -21,14 +21,13 @@ def get_data():
     }
     response = requests.get(URL, headers=headers)
     response.raise_for_status()
-    
     dfs = pd.read_html(response.text)
     if not dfs:
-        raise ValueError("No tables found on the page.")
-    
+        raise ValueError("No tables found")
     return dfs[0]
 
-def compare_and_log(new_df, old_df):
+def compare_and_get_logs(new_df, old_df):
+    logs = []
     id_col = new_df.columns[0]
     price_col = next((c for c in new_df.columns if '€' in c or 'Rent' in c or 'Price' in c), new_df.columns[5])
 
@@ -37,11 +36,15 @@ def compare_and_log(new_df, old_df):
 
     new_units = new_df.index.difference(old_df.index)
     for unit in new_units:
-        print(f"[NEW LISTING] {unit} added at {new_df.loc[unit, price_col]}")
+        msg = f"[NEW LISTING] {unit} added at {new_df.loc[unit, price_col]}"
+        print(msg)
+        logs.append(msg)
 
     removed_units = old_df.index.difference(new_df.index)
     for unit in removed_units:
-        print(f"[REMOVED] {unit} (was {old_df.loc[unit, price_col]})")
+        msg = f"[REMOVED] {unit} (was {old_df.loc[unit, price_col]})"
+        print(msg)
+        logs.append(msg)
 
     common_units = new_df.index.intersection(old_df.index)
     for unit in common_units:
@@ -54,21 +57,26 @@ def compare_and_log(new_df, old_df):
         if old_p != new_p:
             diff = new_p - old_p
             direction = "[PRICE UP]" if diff > 0 else "[PRICE DOWN]"
-            print(f"{direction} {unit}: {old_price_str} -> {new_price_str} (Diff: {diff:+g})")
+            msg = f"{direction} {unit}: {old_price_str} -> {new_price_str} (Diff: {diff:+g})"
+            print(msg)
+            logs.append(msg)
+            
+    return logs
 
 if __name__ == "__main__":
-    print("--- STARTING JOB ---")
     current_df = get_data()
+    all_logs = []
     
     if os.path.exists(CSV_FILE):
         try:
             old_df = pd.read_csv(CSV_FILE)
-            print("Found historical data. Comparing...")
-            compare_and_log(current_df, old_df)
-        except Exception as e:
-            print(f"WARNING: Could not read history: {e}")
-    else:
-        print("No history found. This is the first run.")
-
+            all_logs = compare_and_get_logs(current_df, old_df)
+        except Exception:
+            pass
+            
     current_df.to_csv(CSV_FILE, index=False)
-    print(f"Saved {len(current_df)} rows to {CSV_FILE}")
+    
+    # Simulates the "Trigger"
+    if all_logs:
+        with open(CHANGES_FILE, "w") as f:
+            f.write("\n".join(all_logs))
