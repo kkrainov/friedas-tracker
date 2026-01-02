@@ -1,0 +1,74 @@
+import pandas as pd
+import requests
+import os
+from datetime import datetime
+
+URL = "https://friedas-berlin.de/en/wohnungsfinder/?etage=1,2,3,4,5&zimmer=2,3,4"
+CSV_FILE = "friedas_data.csv"
+
+def clean_currency(value):
+    if isinstance(value, str):
+        clean = value.replace('€', '').replace('.', '').replace(',', '.').strip()
+        try:
+            return float(clean)
+        except ValueError:
+            return 0.0
+    return value
+
+def get_data():
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    response = requests.get(URL, headers=headers)
+    response.raise_for_status()
+    
+    dfs = pd.read_html(response.text)
+    if not dfs:
+        raise ValueError("No tables found on the page.")
+    
+    return dfs[0]
+
+def compare_and_log(new_df, old_df):
+    id_col = new_df.columns[0]
+    price_col = next((c for c in new_df.columns if '€' in c or 'Rent' in c or 'Price' in c), new_df.columns[5])
+
+    new_df = new_df.set_index(id_col)
+    old_df = old_df.set_index(id_col)
+
+    new_units = new_df.index.difference(old_df.index)
+    for unit in new_units:
+        print(f"[NEW LISTING] {unit} added at {new_df.loc[unit, price_col]}")
+
+    removed_units = old_df.index.difference(new_df.index)
+    for unit in removed_units:
+        print(f"[REMOVED] {unit} (was {old_df.loc[unit, price_col]})")
+
+    common_units = new_df.index.intersection(old_df.index)
+    for unit in common_units:
+        old_price_str = str(old_df.loc[unit, price_col])
+        new_price_str = str(new_df.loc[unit, price_col])
+        
+        old_p = clean_currency(old_price_str)
+        new_p = clean_currency(new_price_str)
+        
+        if old_p != new_p:
+            diff = new_p - old_p
+            direction = "[PRICE UP]" if diff > 0 else "[PRICE DOWN]"
+            print(f"{direction} {unit}: {old_price_str} -> {new_price_str} (Diff: {diff:+g})")
+
+if __name__ == "__main__":
+    print("--- STARTING JOB ---")
+    current_df = get_data()
+    
+    if os.path.exists(CSV_FILE):
+        try:
+            old_df = pd.read_csv(CSV_FILE)
+            print("Found historical data. Comparing...")
+            compare_and_log(current_df, old_df)
+        except Exception as e:
+            print(f"WARNING: Could not read history: {e}")
+    else:
+        print("No history found. This is the first run.")
+
+    current_df.to_csv(CSV_FILE, index=False)
+    print(f"Saved {len(current_df)} rows to {CSV_FILE}")
