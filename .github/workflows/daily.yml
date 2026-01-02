@@ -7,12 +7,13 @@ on:
 
 permissions:
   contents: write
-  
+  issues: write  # REQUIRED: Allows the bot to open issues
+
 jobs:
   track-prices:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -21,16 +22,34 @@ jobs:
           python-version: '3.9'
 
       - name: Install Dependencies
-        run: pip install pandas requests lxml html5lib openpyxl
+        run: pip install pandas requests lxml html5lib
 
-      - name: Run Scraper & Check Prices
+      - name: Run Scraper
         run: python scraper.py
 
-      - name: Commit and Push Changes
+      - name: Check for Changes
+        id: check_changes
+        run: |
+          if [ -f changes.txt ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify via GitHub Issue
+        if: steps.check_changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "Friedas Update: Changes Detected" \
+            --body-file changes.txt \
+            --assignee ${{ github.actor }}
+
+      - name: Commit Data
         run: |
           git config --global user.name "PriceBot"
-          git config --global user.email "bot@users.noreply.github.com"
+          git config --global user.email "bot@noreply.github.com"
           git add friedas_data.csv
-          # The commit message includes the date
           git commit -m "Update: $(date +'%Y-%m-%d')" || exit 0
           git push
