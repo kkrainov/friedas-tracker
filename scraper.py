@@ -21,15 +21,24 @@ def get_data():
     }
     response = requests.get(URL, headers=headers)
     response.raise_for_status()
+    
     dfs = pd.read_html(response.text)
     if not dfs:
         raise ValueError("No tables found")
+    
     return dfs[0]
 
 def compare_and_get_logs(new_df, old_df):
     logs = []
+    
     id_col = new_df.columns[0]
-    price_col = next((c for c in new_df.columns if '€' in c or 'Rent' in c or 'Price' in c), new_df.columns[5])
+    
+    price_col = next((c for c in new_df.columns if 'Kaltmiete' in c), None)
+    
+    if not price_col:
+        cols_str = ", ".join(new_df.columns)
+        print(f"CRITICAL ERROR: Column 'Kaltmiete' not found. Available columns: {cols_str}")
+        return []
 
     new_df = new_df.set_index(id_col)
     old_df = old_df.set_index(id_col)
@@ -64,19 +73,23 @@ def compare_and_get_logs(new_df, old_df):
     return logs
 
 if __name__ == "__main__":
-    current_df = get_data()
-    all_logs = []
-    
-    if os.path.exists(CSV_FILE):
-        try:
-            old_df = pd.read_csv(CSV_FILE)
-            all_logs = compare_and_get_logs(current_df, old_df)
-        except Exception:
-            pass
-            
-    current_df.to_csv(CSV_FILE, index=False)
-    
-    # Simulates the "Trigger"
-    if all_logs:
-        with open(CHANGES_FILE, "w") as f:
-            f.write("\n".join(all_logs))
+    try:
+        current_df = get_data()
+        all_logs = []
+        
+        if os.path.exists(CSV_FILE):
+            try:
+                old_df = pd.read_csv(CSV_FILE)
+                all_logs = compare_and_get_logs(current_df, old_df)
+            except Exception as e:
+                print(f"Error reading history: {e}")
+                
+        current_df.to_csv(CSV_FILE, index=False)
+        
+        if all_logs:
+            with open(CHANGES_FILE, "w") as f:
+                f.write("\n".join(all_logs))
+                
+    except Exception as main_e:
+        print(f"Script failed: {main_e}")
+        exit(1)
