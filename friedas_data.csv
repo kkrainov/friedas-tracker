@@ -1,4 +1,4 @@
-ImmoNr.,House,Floor,Rooms,Apartment type,Living space,Base rent,Utility costs,Total rent,Available from,Floor plan
+Property ID,House,Floor,Rooms,Apartment type,Living space,Base rent,Utility costs,Total rent,Available from,Floor plan
 R5-W129,R,5,3,3N,77.79,1999,280,2279,immediately,
 R4-W124,R,4,2,2B,59.85,1655,210,1865,immediately,
 R4-W123,R,4,3,3N,77.97,2117,280,2397,immediately,
