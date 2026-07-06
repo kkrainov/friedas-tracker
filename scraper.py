@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 import os
 
-URL = "https://friedas-berlin.de/en/wohnungsfinder/?etage=1,2,3,4,5&zimmer=2,3,4"
+URL = "https://friedas-berlin.de/de/wohnungsfinder/?etage=1,2,3,4,5&zimmer=2,3,4"
 CSV_FILE = "friedas_data.csv"
 CHANGES_FILE = "changes.txt"
 
