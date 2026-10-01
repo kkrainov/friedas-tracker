@@ -1,6 +1,5 @@
 ImmoNr. (Kennung),Haus,Etage,Zimmer,Wohnungstyp,Wohnfläche,Kaltmiete,Nebenkosten,Gesamtmiete,Verfügbar ab,Grundriss
 R4-W124,R,4,2,2B,59.85,1655,210,1865,ab sofort,
-R4-W123,R,4,3,3N,77.97,2117,280,2397,ab sofort,
 R2-W114,R,2,2,2F,61.58,1625,220,1845,ab sofort,
 R2-W111,R,2,3,3N,77.98,1925,280,2205,ab sofort,
 Q4-W093,Q,4,2,2C,60.39,1499,220,1719,ab sofort,
